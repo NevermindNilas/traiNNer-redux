@@ -748,7 +748,11 @@ class SRModel(BaseModel):
         gt_key = "img2"
         run_metrics = self.with_metrics
 
+        num_batches = 0
+        num_metric_samples = 0
+
         for val_data in dataloader:
+            num_batches += 1
             img_name = osp.splitext(osp.basename(val_data["lq_path"][0]))[0]
             self.feed_data(val_data)
             self.test()
@@ -839,10 +843,26 @@ class SRModel(BaseModel):
             if run_metrics:
                 # calculate metrics
                 assert self.opt.val.metrics is not None
-                for name, opt_ in self.opt.val.metrics.items():
-                    result = calculate_metric(metric_data, opt_, self.device)
-                    # logger.info("%d %s/%s: %f", current_iter, name, img_name, result)
-                    self.metric_results[name] += result
+                if gt_key not in metric_data:
+                    logger.warning(
+                        "Skipping metrics for '%s' (no GT available).",
+                        img_name,
+                    )
+                elif metric_data["img"].shape != metric_data[gt_key].shape:
+                    logger.warning(
+                        "Skipping metrics for '%s' due to shape mismatch: SR %s vs GT %s. (lq=%s, gt=%s)",
+                        img_name,
+                        metric_data["img"].shape,
+                        metric_data[gt_key].shape,
+                        val_data.get("lq_path", [None])[0],
+                        val_data.get("gt_path", [None])[0],
+                    )
+                else:
+                    for name, opt_ in self.opt.val.metrics.items():
+                        result = calculate_metric(metric_data, opt_, self.device)
+                        # logger.info("%d %s/%s: %f", current_iter, name, img_name, result)
+                        self.metric_results[name] += result
+                    num_metric_samples += 1
             if pbar is not None:
                 pbar.update(1)
                 pbar.set_description(f"Test {img_name}")
@@ -850,8 +870,25 @@ class SRModel(BaseModel):
             pbar.close()
 
         if run_metrics:
+            if num_batches == 0:
+                logger.warning(
+                    "Validation dataloader for '%s' is empty; skipping metric calculation.",
+                    dataset_name,
+                )
+                self.first_val_completed = True
+                self.is_train = True
+                return
+
+            if num_metric_samples == 0:
+                logger.warning(
+                    "No valid metric samples were computed for '%s'; skipping metric logging.",
+                    dataset_name,
+                )
+                self.first_val_completed = True
+                self.is_train = True
+                return
             for metric in self.metric_results.keys():
-                self.metric_results[metric] /= len(dataloader)
+                self.metric_results[metric] /= num_metric_samples
                 # update the best metric result
                 self._update_best_metric_result(
                     dataset_name, metric, self.metric_results[metric], current_iter
