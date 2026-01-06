@@ -41,18 +41,37 @@ class PairedVideoDataset(BaseDataset):
         logger = get_root_logger()
 
         for i, lq_path in enumerate(self.dataroot_lq):
-            for f in sorted(os.listdir(lq_path)):
-                if f.lower().endswith((".png", ".jpg", ".jpeg")):
-                    scene_prefix = f"{lq_path}_{f.split('_')[0]}"
-                    lr_path = os.path.join(lq_path, f)
-                    hr_path = os.path.join(self.dataroot_gt[i], f)
+            # Support both flat folders (images directly in dataroot) and
+            # one-level scene subfolders (each scene is a subdirectory with frames).
+            for entry in sorted(os.listdir(lq_path)):
+                entry_path = os.path.join(lq_path, entry)
+                if os.path.isdir(entry_path):
+                    scene_name = entry
+                    for f in sorted(os.listdir(entry_path)):
+                        if f.lower().endswith((".png", ".jpg", ".jpeg")):
+                            lr_path = os.path.join(entry_path, f)
+                            hr_path = os.path.join(self.dataroot_gt[i], entry, f)
+                            scene_prefix = f"{entry_path}_{scene_name}"
 
-                    if os.path.exists(hr_path):
-                        if scene_prefix not in self.frames:
-                            self.frames[scene_prefix] = []
-                        self.frames[scene_prefix].append((lr_path, hr_path))
-                    else:
-                        logger.warning("No matching HR file for %s", f)
+                            if os.path.exists(hr_path):
+                                if scene_prefix not in self.frames:
+                                    self.frames[scene_prefix] = []
+                                self.frames[scene_prefix].append((lr_path, hr_path))
+                            else:
+                                logger.warning("No matching HR file for %s in scene %s", f, entry)
+                else:
+                    f = entry
+                    if f.lower().endswith((".png", ".jpg", ".jpeg")):
+                        scene_prefix = f"{lq_path}_{f.split('_')[0]}"
+                        lr_path = os.path.join(lq_path, f)
+                        hr_path = os.path.join(self.dataroot_gt[i], f)
+
+                        if os.path.exists(hr_path):
+                            if scene_prefix not in self.frames:
+                                self.frames[scene_prefix] = []
+                            self.frames[scene_prefix].append((lr_path, hr_path))
+                        else:
+                            logger.warning("No matching HR file for %s", f)
 
         logger.info(
             "Found %d valid file pairs across %d scenes.",

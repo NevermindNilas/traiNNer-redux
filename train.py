@@ -104,10 +104,18 @@ def create_train_val_dataloader(
                 )
 
             train_set = build_dataset(dataset_opt)
+            train_set_len = len(train_set)
+            if train_set_len == 0:
+                raise ValueError(
+                    "Training dataset is empty. This usually means your dataset paths/meta file are wrong or contain no supported files. "
+                    f"Dataset name={dataset_opt.name!r}, type={dataset_opt.type!r}, dataroot_gt={dataset_opt.dataroot_gt!r}, "
+                    f"dataroot_lq={dataset_opt.dataroot_lq!r}, meta_info={dataset_opt.meta_info!r}."
+                )
+
             dataset_enlarge_ratio = dataset_opt.dataset_enlarge_ratio
             if dataset_enlarge_ratio == "auto":
                 dataset_enlarge_ratio = max(
-                    2000 * dataset_opt.batch_size_per_gpu // len(train_set), 1
+                    2000 * dataset_opt.batch_size_per_gpu // train_set_len, 1
                 )
             train_sampler = EnlargedSampler(
                 train_set, opt.world_size, opt.rank, dataset_enlarge_ratio
@@ -122,7 +130,7 @@ def create_train_val_dataloader(
             )
 
             iter_per_epoch = (
-                len(train_set)
+                train_set_len
                 * dataset_enlarge_ratio
                 // (
                     dataset_opt.batch_size_per_gpu
@@ -131,7 +139,7 @@ def create_train_val_dataloader(
                 )
             )
 
-            opt.switch_iter_per_epoch = len(train_set) // (
+            opt.switch_iter_per_epoch = train_set_len // (
                 dataset_opt.batch_size_per_gpu * dataset_opt.accum_iter * opt.world_size
             )
 
@@ -147,7 +155,7 @@ def create_train_val_dataloader(
                 "\t%-30s %9s\t%-30s %9s",
                 opt.name,
                 f"Number of train {train_set.label}:",
-                f"{len(train_set):,}",
+                f"{train_set_len:,}",
                 "Dataset enlarge ratio:",
                 f"{dataset_enlarge_ratio:,}",
                 "Batch size per gpu:",
@@ -167,11 +175,11 @@ def create_train_val_dataloader(
                 "Total iters:",
                 f"{total_iters:,}",
             )
-            if len(train_set) < 100:
+            if train_set_len < 100:
                 logger.warning(
                     "Number of training %s is low: %d, training quality may be impacted. Please use more training %s for best training results.",
                     train_set.label,
-                    len(train_set),
+                    train_set_len,
                     train_set.label,
                 )
         elif phase.split("_")[0] == "val":

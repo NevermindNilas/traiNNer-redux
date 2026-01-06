@@ -344,15 +344,25 @@ class SRModel(BaseModel):
 
     def feed_data(self, data: DataFeed) -> None:
         assert "lq" in data
+
+        def _memory_format_for(tensor: torch.Tensor):
+            if self.use_amp and self.use_channels_last:
+                if tensor.ndim == 4:
+                    return torch.channels_last
+                elif tensor.ndim == 5:
+                    # channels_last_3d is appropriate for 5D video tensors
+                    return torch.channels_last_3d
+            return torch.preserve_format
+
         self.lq = data["lq"].to(
             self.device,
-            memory_format=self.memory_format,
+            memory_format=_memory_format_for(data["lq"]),
             non_blocking=True,
         )
         if "gt" in data:
             self.gt = data["gt"].to(
                 self.device,
-                memory_format=self.memory_format,
+                memory_format=_memory_format_for(data["gt"]),
                 non_blocking=True,
             )
 

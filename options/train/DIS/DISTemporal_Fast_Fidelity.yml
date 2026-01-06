@@ -2,12 +2,12 @@
 #########################################################################################
 # General Settings
 #########################################################################################
-name: 4x_DISTemporal_Fast
-scale: 4
+name: fast-pretrain
+scale: 2
 use_amp: true
 amp_bf16: false
-use_channels_last: false
-fast_matmul: false
+use_channels_last: true
+fast_matmul: true
 num_gpu: auto
 
 ########################################################################################################################
@@ -18,28 +18,28 @@ datasets:
     name: Train Dataset
     type: pairedvideodataset
     dataroot_gt: [
-      datasets/train/dataset1/hr
+      /home/nilas/Downloads/atd-12-dataset/datasets/test_2k_540p
     ]
     dataroot_lq: [
-      datasets/train/dataset1/lr
+      /home/nilas/Downloads/atd-12-dataset/datasets/test_2k_lq
     ]
-    clip_size: 5
+    clip_size: 3
     lq_size: 64
     use_hflip: true
     use_rot: true
     num_worker_per_gpu: 8
-    batch_size_per_gpu: 8
+    batch_size_per_gpu: 24
 
   val:
     name: Val Dataset
     type: pairedvideodataset
     dataroot_gt: [
-      datasets/val/dataset1/hr
+      /home/nilas/Downloads/ModernAnimation1080_v2 (2)/valHR
     ]
     dataroot_lq: [
-      datasets/val/dataset1/lr
+      /home/nilas/Downloads/ModernAnimation1080_v2 (2)/valHR
     ]
-    clip_size: 5
+    clip_size: 3
 
 #####################################################################
 # Network Settings
@@ -69,7 +69,7 @@ train:
 
   optim_g:
     type: AdamW
-    lr: !!float 5e-4
+    lr: !!float 2e-4
     weight_decay: 0
     betas: [0.9, 0.99]
 
@@ -89,7 +89,7 @@ train:
 # Validation
 ##############################################################################################
 val:
-  val_enabled: true
+  val_enabled: false
   val_freq: 5000
   save_img: true
   tile_size: 0
