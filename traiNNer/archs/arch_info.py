@@ -90,6 +90,9 @@ ARCHS_WITHOUT_CHANNELS_LAST = {
     "tscunet",  # rank 5 tensors don't support channels last
     "temporalspan",
     "temporalspanv2",
+    "distemporal",
+    "distemporal_balanced",
+    "distemporal_fast",
 }
 
 # A set of arch names whose arch requires a minimum

@@ -1,0 +1,111 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/the-database/traiNNer-redux/refs/heads/master/schemas/redux-config.schema.json
+#########################################################################################
+# General Settings
+#########################################################################################
+name: 4x_DISTemporal_Fast
+scale: 4
+use_amp: true
+amp_bf16: false
+use_channels_last: false
+fast_matmul: false
+num_gpu: auto
+
+########################################################################################################################
+# Dataset and Dataloader Settings
+########################################################################################################################
+datasets:
+  train:
+    name: Train Dataset
+    type: pairedvideodataset
+    dataroot_gt: [
+      datasets/train/dataset1/hr
+    ]
+    dataroot_lq: [
+      datasets/train/dataset1/lr
+    ]
+    clip_size: 5
+    lq_size: 64
+    use_hflip: true
+    use_rot: true
+    num_worker_per_gpu: 8
+    batch_size_per_gpu: 8
+
+  val:
+    name: Val Dataset
+    type: pairedvideodataset
+    dataroot_gt: [
+      datasets/val/dataset1/hr
+    ]
+    dataroot_lq: [
+      datasets/val/dataset1/lr
+    ]
+    clip_size: 5
+
+#####################################################################
+# Network Settings
+#####################################################################
+network_g:
+  type: distemporal_fast
+  num_features: 32
+  num_blocks: 8
+  use_depthwise: false
+
+#########################################################################################
+# Pretrain and Resume Paths
+#########################################################################################
+path:
+  pretrain_network_g: ~
+  param_key_g: ~
+  strict_load_g: true
+  resume_state: ~
+
+###########################################################################################
+# Training Settings
+###########################################################################################
+train:
+  ema_decay: 0.999
+  ema_power: 0.75
+  grad_clip: false
+
+  optim_g:
+    type: AdamW
+    lr: !!float 5e-4
+    weight_decay: 0
+    betas: [0.9, 0.99]
+
+  scheduler:
+    type: MultiStepLR
+    milestones: [200000, 400000, 600000, 800000]
+    gamma: 0.5
+
+  total_iter: 1000000
+  warmup_iter: -1
+
+  losses:
+    - type: charbonnierloss
+      loss_weight: 1.0
+
+##############################################################################################
+# Validation
+##############################################################################################
+val:
+  val_enabled: true
+  val_freq: 5000
+  save_img: true
+  tile_size: 0
+
+  metrics_enabled: true
+  metrics:
+    psnr:
+      type: calculate_psnr
+      crop_border: 4
+      test_y_channel: false
+
+##############################################################################################
+# Logging
+##############################################################################################
+logger:
+  print_freq: 100
+  save_checkpoint_freq: 5000
+  save_checkpoint_format: pth
+  use_tb_logger: true
