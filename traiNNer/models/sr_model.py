@@ -924,12 +924,20 @@ class SRModel(BaseModel):
         assert self.output is not None
         assert self.lq is not None
 
+        def _center_frame(x: Tensor) -> Tensor:
+            # For video datasets, tensors may be shaped (B, T, C, H, W).
+            # Validation/saving/metrics operate per-frame; use the center frame.
+            if x.dim() == 5:
+                t = x.size(1)
+                return x[:, t // 2, ...]
+            return x
+
         out_dict = OrderedDict()
-        out_dict["lq"] = self.lq.detach().cpu()
-        out_dict["result"] = self.output.detach().cpu()
+        out_dict["lq"] = _center_frame(self.lq).detach().cpu()
+        out_dict["result"] = _center_frame(self.output).detach().cpu()
 
         if self.gt is not None:
-            out_dict["gt"] = self.gt.detach().cpu()
+            out_dict["gt"] = _center_frame(self.gt).detach().cpu()
         return out_dict
 
     def save(
